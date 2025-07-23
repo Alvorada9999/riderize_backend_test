@@ -1,9 +1,9 @@
 import { ObjectType, Field, ID } from 'type-graphql'
-import { Entity, PrimaryGeneratedColumn, Column, BaseEntity, ManyToOne, JoinColumn } from "typeorm"
-import { Ride } from './index.js'
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm"
+import { Ride, SubscribedRide } from './index.js'
 
 @ObjectType()
-@Entity()
+@Entity({ name: "users", schema: "riderize" })
 export default class User {
   @Field(type => ID)
   @PrimaryGeneratedColumn("uuid")
@@ -20,12 +20,11 @@ export default class User {
   @Column()
   password!: string
 
-  @Column()
-  password_salt!: string
-
-  @Field(type => [Ride]!)
+  @Field(type => [Ride], { nullable: 'items' })
+  @OneToMany(() => Ride, (ride) => ride.user)
   rides!: Ride[]
 
-  @Field(type => [Ride]!)
-  subscribedRides!: Ride[]
+  @Field(() => [SubscribedRide], { nullable: 'items' })
+  @OneToMany(() => SubscribedRide, (subscription) => subscription.user)
+  subscribedRides!: SubscribedRide[]
 }

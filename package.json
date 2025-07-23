@@ -13,10 +13,16 @@
   "dependencies": {
     "@apollo/server": "^5.0.0",
     "@as-integrations/express5": "^1.1.2",
+    "argon2": "^0.43.1",
+    "class-validator": "^0.14.2",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "graphql": "^16.11.0",
     "graphql-scalars": "^1.24.2",
+    "jsonwebtoken": "^9.0.2",
+    "luxon": "^3.7.1",
+    "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "type-graphql": "^2.0.0-rc.2",
     "typeorm": "^0.3.25"
@@ -25,6 +31,8 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/graphql": "^14.2.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/luxon": "^3.6.2",
     "@types/node": "^24.0.15",
     "typescript": "^5.8.3"
   }

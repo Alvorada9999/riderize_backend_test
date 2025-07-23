@@ -4,3 +4,5 @@ CREATE TABLE IF NOT EXISTS riderize.subscriptions (
   PRIMARY KEY (user_id, ride_id),
   subscription_date timestamptz DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_subscriptions_user_id ON riderize.subscriptions(ride_id);

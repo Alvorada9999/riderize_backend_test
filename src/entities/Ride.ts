@@ -1,13 +1,18 @@
-import { ObjectType, Field, ID } from 'type-graphql'
-import { Entity, PrimaryGeneratedColumn, Column, BaseEntity, ManyToOne, JoinColumn } from "typeorm"
-import { User } from './index.js'
+import { ObjectType, Field, ID, Int } from 'type-graphql'
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, JoinColumn } from "typeorm"
+import { User, SubscribedRide } from './index.js'
 
 @ObjectType()
-@Entity()
+@Entity({ name: "rides", schema: "riderize" })
 export default class Ride {
   @Field(type => ID)
   @PrimaryGeneratedColumn("uuid")
   id!: string
+
+  @JoinColumn({ name: 'user_id' })
+  @ManyToOne(() => User, (user) => user.rides, { onDelete: 'CASCADE' })
+  @Field(type => User)
+  user!: User
 
   @Field()
   @Column()
@@ -37,11 +42,11 @@ export default class Ride {
   @Column()
   start_place!: string
 
-  @Field({ nullable: true })
+  @Field(() => Int, { nullable: true })
   @Column({ nullable: true })
   participants_limit?: number
 
-  @Field(type => [User]!)
-  @Column()
-  subscribers!: User[]
+  @Field(() => [SubscribedRide], { nullable: 'items' })
+  @OneToMany(() => SubscribedRide, (subscription) => subscription.ride)
+  subscribers!: SubscribedRide[]
 }

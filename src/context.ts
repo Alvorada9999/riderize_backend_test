@@ -1,3 +1,8 @@
+import { Repository } from "typeorm";
+import { User, Ride, SubscribedRide } from "./entities/index.js";
+
 export default interface Context {
-  userId?: string;
+  userRepo: Repository<User>
+  rideRepo: Repository<Ride>
+  subscribedRideRepo: Repository<SubscribedRide>
 }

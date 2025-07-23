@@ -16,7 +16,7 @@ type Ride {
   additional_information: String
   start_place: String!
   participants_limit: Int
-  subscribers: [User]!
+  subscribers: [SubscribedRide]!
 }
 
 type SubscribedRide {
@@ -25,10 +25,10 @@ type SubscribedRide {
 }
 
 type Query {
-  login(email: String!, password: String!): String
+  login(email: String!, password: String!): String #done
   rides(offset: Int!, pageSize: Int!): [Ride]
-  subscribedRides(jwt: String!): [Ride]
-  createdRides(jwt: String!): [Ride]
+  subscribedRides: [Ride]
+  createdRides: [Ride]
 }
 
 input createRideInput {
@@ -42,7 +42,7 @@ input createRideInput {
 }
 
 type Mutation {
-  createUser(email: String!, password: String!): ID
-  createRide(jwt: String!, ride: createRideInput!): ID
-  subscribe(jwt: String!, rideId: String!): Boolean
+  createUser(email: String!, password: String!): string #done
+  createRide(ride: createRideInput!): ID #done
+  subscribe(rideId: String!): Boolean
 }
