@@ -23,5 +23,5 @@ export default class SubscribedRide {
 
   @Field()
   @Column()
-  subscription_date!: string
+  subscription_date!: Date
 }

@@ -1,16 +1,24 @@
 import 'reflect-metadata'
+
 import express from 'express'
 import { expressMiddleware } from '@as-integrations/express5'
 import cors from 'cors'
 import { ApolloServer } from '@apollo/server'
+import Keyv from 'keyv';
+import KeyvRedis from '@keyv/redis';
+import { Repository } from "typeorm";
+import jwt from 'jsonwebtoken';
+
 import { UserResolver, RideResolver, RootResolver } from './resolvers/index.js'
 import Context from './context'
 import AuthenticatedContext from './authenticatedContext'
 import { AppDataSource, User, Ride, SubscribedRide } from './entities/index.js'
-import { Repository } from "typeorm";
-import jwt from 'jsonwebtoken';
-import { JwtPayload } from 'jsonwebtoken'
-import { config } from './config.js'
+import { env } from './env.js'
+
+const keyv = new Keyv(new KeyvRedis('redis://redis:6379'));
+keyv.on('error', (err: Error) => {
+  throw new Error(err.message)
+});
 
 let userRepo: Repository<User>
 let rideRepo: Repository<Ride>
@@ -21,8 +29,8 @@ AppDataSource.initialize()
     rideRepo = AppDataSource.getRepository(Ride)
     subscribedRideRepo = AppDataSource.getRepository(SubscribedRide)
   })
-  .catch((err) => {
-    console.error("Error during Data Source initialization:", err);
+  .catch((err: Error) => {
+    throw new Error(err.message)
   });
 
 import { buildSchema } from 'type-graphql'
@@ -50,16 +58,18 @@ app.use(
       const context: Context = {
         userRepo,
         rideRepo,
-        subscribedRideRepo
+        subscribedRideRepo,
+        cache: keyv
       }
       if (token) {
         try {
-          let jwtPayload = jwt.verify(token, config.jwtSecret) as JwtPayload
+          const jwtPayload = jwt.verify(token, env.JWT_SECRET) as jwt.JwtPayload
           const authenticatedContext: AuthenticatedContext = {
             userRepo,
             rideRepo,
             subscribedRideRepo,
-            jwtPayload
+            jwtPayload,
+            cache: keyv
           }
           return authenticatedContext
         } catch (err) {

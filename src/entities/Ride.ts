@@ -24,15 +24,15 @@ export default class Ride {
 
   @Field()
   @Column()
-  start_date!: string
+  start_date!: Date
 
   @Field()
   @Column()
-  start_date_registration!: string
+  start_date_registration!: Date
 
   @Field()
   @Column()
-  end_date_registration!: string
+  end_date_registration!: Date
 
   @Field({ nullable: true })
   @Column({ nullable: true })

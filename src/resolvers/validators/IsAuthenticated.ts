@@ -1,4 +1,4 @@
-import { MiddlewareFn, MiddlewareInterface, ResolverData, NextFn } from 'type-graphql'
+import { MiddlewareFn } from 'type-graphql'
 import AuthenticatedContext from '../../authenticatedContext.js'
 
 const IsAuthenticated: MiddlewareFn<AuthenticatedContext> = async ({ context }, next) => {

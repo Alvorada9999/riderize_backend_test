@@ -15,10 +15,10 @@ import Context from '../context.js';
 import AuthenticatedContext from '../authenticatedContext'
 import argon2 from 'argon2'
 import jwt from 'jsonwebtoken';
-import { Validate } from 'class-validator'
-import { IsISOWithTimezone, IsAuthenticated } from './validators/index.js'
+import { Validate, MaxLength } from 'class-validator'
+import { IsISOWithTimezone, IsAuthenticated, IsValidEmail } from './validators/index.js'
 import { DateTime } from 'luxon'
-import { config } from '../config.js'
+import { env } from '../env.js'
 
 @InputType()
 class CreateRideInput {
@@ -47,6 +47,20 @@ class CreateRideInput {
   participants_limit?: number;
 }
 
+@InputType()
+class CreateUserInput {
+  @Field()
+  name!: string;
+
+  @Field()
+  @Validate(IsValidEmail)
+  email!: string;
+
+  @Field()
+  @MaxLength(320)
+  password!: string;
+}
+
 @Resolver()
 export default class RootResolver {
   @Query(() => String, { nullable: true })
@@ -59,7 +73,7 @@ export default class RootResolver {
     if (!user) throw new Error('Invalid credentials');
     const valid = await argon2.verify(user.password, password);
     if (!valid) throw new Error('Invalid credentials');
-    const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '1d' });
+    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, { expiresIn: '1d' });
     return token;
   }
 
@@ -69,13 +83,20 @@ export default class RootResolver {
     @Arg("pageSize", () => Int) pageSize: number,
     @Ctx() ctx: Context
   ): Promise<Ride[]> {
-    return await ctx.rideRepo.find({
-      skip: offset,
-      take: pageSize,
-      order: {
-        start_date: "DESC",
-      }
-    });
+    const cachedResult = await ctx.cache.get(`paged_rides${offset}_${pageSize}`)
+    if (cachedResult) {
+      return JSON.parse(cachedResult)
+    } else {
+      const result = await ctx.rideRepo.find({
+        skip: offset,
+        take: pageSize,
+        order: {
+          start_date: "DESC",
+        }
+      });
+      await ctx.cache.set(`paged_rides${offset}_${pageSize}`, JSON.stringify(result), Number(env.CACHE_TIME))
+      return result
+    }
   }
 
   @Query(() => [SubscribedRide], { nullable: 'items' })
@@ -83,11 +104,17 @@ export default class RootResolver {
   async subscribedRides(
     @Ctx() ctx: AuthenticatedContext,
   ): Promise<SubscribedRide[]> {
-    const result = ctx.subscribedRideRepo.find({
-      where: { user_id: ctx.jwtPayload.userId },
-      relations: ["ride", "user"]
-    })
-    return result
+    const cachedResult = await ctx.cache.get(`subscribed_rides_${ctx.jwtPayload.userId}`)
+    if (cachedResult) {
+      return JSON.parse(cachedResult)
+    } else {
+      const result = ctx.subscribedRideRepo.find({
+        where: { user_id: ctx.jwtPayload.userId },
+        relations: ["ride", "user"]
+      })
+      await ctx.cache.set(`subscribed_rides_${ctx.jwtPayload.userId}`, JSON.stringify(result), Number(env.CACHE_TIME))
+      return result
+    }
   }
 
   @Query(() => [Ride], { nullable: 'items' })
@@ -95,31 +122,35 @@ export default class RootResolver {
   async createdRides(
     @Ctx() ctx: AuthenticatedContext,
   ): Promise<Ride[]> {
-    const result = ctx.rideRepo.find({
-      where: { user_id: ctx.jwtPayload.userId },
-      relations: ["user"]
-    })
-    return result
+    const cachedResult = await ctx.cache.get(`created_rides_${ctx.jwtPayload.userId}`)
+    if (cachedResult) {
+      return JSON.parse(cachedResult)
+    } else {
+      const result = ctx.rideRepo.find({
+        where: { user_id: ctx.jwtPayload.userId },
+        relations: ["user"]
+      })
+      await ctx.cache.set(`created_rides_${ctx.jwtPayload.userId}`, JSON.stringify(result), Number(env.CACHE_TIME))
+      return result
+    }
   }
 
   @Mutation(() => ID)
   async createUser(
-    @Arg("name") name: string,
-    @Arg("email") email: string,
-    @Arg("password") password: string,
+    @Arg("user") user: CreateUserInput,
     @Ctx() ctx: Context
   ): Promise<string> {
-    let result = await ctx.userRepo.findBy({ email: email })
+    const result = await ctx.userRepo.findBy({ email: user.email })
     if (result.length > 0) throw new Error('Email already in use')
-    const hashedPassword = await argon2.hash(password)
-    const user = ctx.userRepo.create({
-      name,
-      email,
+    const hashedPassword = await argon2.hash(user.password)
+    const createdUser = ctx.userRepo.create({
+      name: user.name,
+      email: user.email,
       password: hashedPassword,
     });
 
-    await ctx.userRepo.save(user);
-    return user.id
+    await ctx.userRepo.save(createdUser);
+    return createdUser.id
   }
 
   @Mutation(() => ID)
@@ -145,10 +176,14 @@ export default class RootResolver {
   ): Promise<boolean> {
     const ride = await ctx.rideRepo.findOne({ where: { id: rideId } })
     if (!ride) throw new Error('Ride does not exists');
-    const dbDate = DateTime.fromJSDate(new Date(ride.end_date_registration), { zone: "utc" })
+    const end_date_registration_Date = DateTime.fromJSDate(ride.end_date_registration, { zone: "utc" })
     const nowPlus30 = DateTime.utc().plus({ seconds: 30 })
-    if (nowPlus30 > dbDate) {
+    if (nowPlus30 > end_date_registration_Date) {
       throw new Error('Subscription time execed')
+    }
+    const start_date_registration_Date = DateTime.fromJSDate(ride.start_date_registration, { zone: "utc" })
+    if (nowPlus30 < start_date_registration_Date) {
+      throw new Error('Subscription time not yet achieved')
     }
     const createdSubscription = ctx.subscribedRideRepo.create({
       ride_id: rideId,
